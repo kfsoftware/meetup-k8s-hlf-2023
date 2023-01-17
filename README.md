@@ -65,7 +65,9 @@ kubectl krew install hlf
 
 Install Istio binaries on the machine:
 ```bash
-curl -L https://istio.io/downloadIstio | sh -
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.16.1 TARGET_ARCH=x86_64 sh -
+export PATH="$PATH:$PWD/istio-1.16.1/bin"
+
 ```
 
 Install Istio on the Kubernetes cluster:
@@ -345,6 +347,7 @@ kubectl hlf ca register --name=ord-ca --user=orderer --secret=ordererpw \
 ### Deploy orderer
 
 ```bash
+
 kubectl hlf ordnode create --image=$ORDERER_IMAGE --version=$ORDERER_VERSION \
     --storage-class=standard --enroll-id=orderer --mspid=OrdererMSP \
     --enroll-pw=ordererpw --capacity=2Gi --name=ord-node0 --ca-name=ord-ca.default \
@@ -372,6 +375,8 @@ kubectl get pods
 
 ```bash
 openssl s_client -connect orderer0-ord.localho.st:443
+openssl s_client -connect orderer1-ord.localho.st:443
+openssl s_client -connect orderer2-ord.localho.st:443
 ```
 
 
@@ -428,6 +433,7 @@ kubectl hlf ca enroll --name=org2-ca --namespace=default \
 
 kubectl create secret generic wallet --namespace=default \
         --from-file=org1msp.yaml=$PWD/org1msp.yaml \
+        --from-file=org2msp.yaml=$PWD/org2msp.yaml \
         --from-file=orderermsp.yaml=$PWD/orderermsp.yaml
 ```
 
@@ -547,6 +553,8 @@ spec:
   anchorPeers:
     - host: org1-peer0.default
       port: 7051
+    - host: org1-peer1.default
+      port: 7051
   hlfIdentity:
     secretKey: org1msp.yaml
     secretName: wallet
@@ -579,10 +587,12 @@ kubectl apply -f - <<EOF
 apiVersion: hlf.kungfusoftware.es/v1alpha1
 kind: FabricFollowerChannel
 metadata:
-  name: demo-org1msp
+  name: demo-org2msp
 spec:
   anchorPeers:
     - host: org2-peer0.default
+      port: 7051
+    - host: org2-peer1.default
       port: 7051
   hlfIdentity:
     secretKey: org2msp.yaml
@@ -673,12 +683,12 @@ cat << METADATA-EOF > "metadata.json"
     "label": "${CHAINCODE_LABEL}"
 }
 METADATA-EOF
-## chaincode as a service
 ```
 
 ### Prepare connection file
 
 ```bash
+## chaincode as a service
 cat > "connection.json" <<CONN_EOF
 {
   "address": "${CHAINCODE_NAME}:7052",
@@ -693,9 +703,15 @@ export PACKAGE_ID=$(kubectl hlf chaincode calculatepackageid --path=chaincode.tg
 echo "PACKAGE_ID=$PACKAGE_ID"
 
 kubectl hlf chaincode install --path=./chaincode.tgz \
-    --config=org1.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org1-peer0.default
+    --config=network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org1-peer0.default
 kubectl hlf chaincode install --path=./chaincode.tgz \
-    --config=org1.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org1-peer1.default
+    --config=network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org1-peer1.default
+
+
+kubectl hlf chaincode install --path=./chaincode.tgz \
+    --config=network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org2-peer0.default
+kubectl hlf chaincode install --path=./chaincode.tgz \
+    --config=network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org2-peer1.default
 
 ```
 
@@ -715,30 +731,40 @@ kubectl hlf externalchaincode sync --image=kfsoftware/chaincode-external:latest 
 
 ## Check installed chaincodes
 ```bash
-kubectl hlf chaincode queryinstalled --config=org1.yaml --user=admin --peer=org1-peer0.default
+kubectl hlf chaincode queryinstalled --config=network.yaml --user=admin --peer=org1-peer0.default
 ```
 
-## Approve chaincode
+## Approve chaincode - Org1MSP
 ```bash
 export SEQUENCE=1
 export VERSION="1.0"
-kubectl hlf chaincode approveformyorg --config=org1.yaml --user=admin --peer=org1-peer0.default \
+kubectl hlf chaincode approveformyorg --config=network.yaml --user=admin --peer=org1-peer0.default \
     --package-id=$PACKAGE_ID \
     --version "$VERSION" --sequence "$SEQUENCE" --name=asset \
-    --policy="OR('Org1MSP.member')" --channel=demo
+    --policy="AND('Org1MSP.member', 'Org2MSP.member')" --channel=demo
+```
+
+## Approve chaincode - Org1MSP
+```bash
+export SEQUENCE=1
+export VERSION="1.0"
+kubectl hlf chaincode approveformyorg --config=network.yaml --user=admin --peer=org2-peer0.default \
+    --package-id=$PACKAGE_ID \
+    --version "$VERSION" --sequence "$SEQUENCE" --name=asset \
+    --policy="AND('Org1MSP.member', 'Org2MSP.member')" --channel=demo
 ```
 
 ## Commit chaincode
 ```bash
-kubectl hlf chaincode commit --config=org1.yaml --user=admin --mspid=Org1MSP \
+kubectl hlf chaincode commit --config=network.yaml --user=admin --mspid=Org1MSP \
     --version "$VERSION" --sequence "$SEQUENCE" --name=asset \
-    --policy="OR('Org1MSP.member')" --channel=demo
+    --policy="AND('Org1MSP.member', 'Org2MSP.member')" --channel=demo
 ```
 
 
 ## Invoke a transaction on the channel
 ```bash
-kubectl hlf chaincode invoke --config=org1.yaml \
+kubectl hlf chaincode invoke --config=network.yaml \
     --user=admin --peer=org1-peer0.default \
     --chaincode=asset --channel=demo \
     --fcn=initLedger -a '[]'
@@ -746,7 +772,7 @@ kubectl hlf chaincode invoke --config=org1.yaml \
 
 ## Query assets in the channel
 ```bash
-kubectl hlf chaincode query --config=org1.yaml \
+kubectl hlf chaincode query --config=network.yaml \
     --user=admin --peer=org1-peer0.default \
     --chaincode=asset --channel=demo \
     --fcn=GetAllAssets -a '[]'
@@ -782,7 +808,7 @@ Chaincode installation/build can fail due to unsupported local kubertenes versio
 
 ```shell
 $ kubectl hlf chaincode install --path=./fixtures/chaincodes/fabcar/go \
-        --config=org1.yaml --language=golang --label=fabcar --user=admin --peer=org1-peer0.default
+        --config=network.yaml --language=golang --label=fabcar --user=admin --peer=org1-peer0.default
 
 Error: Transaction processing for endorser [192.168.49.2:31278]: Chaincode status Code: (500) UNKNOWN.
 Description: failed to invoke backing implementation of 'InstallChaincode': could not build chaincode:
