@@ -11,7 +11,7 @@ import { newConnectOptions, newGrpcConnection } from './utils';
 import FabricCAServices = require("fabric-ca-client")
 import express = require("express")
 
-const log = new Logger({ name: "products-api" })
+const log = new Logger({ name: "assets-api" })
 
 
 async function main() {

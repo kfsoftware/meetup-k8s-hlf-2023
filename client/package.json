@@ -6,8 +6,8 @@
     "build": "tsc",
     "build:w": "tsc --watch",
     "server": "node dist/server.js",
-    "server:sony:dev": "dotenv -e ./.env.sony ts-node-dev ./src/server.ts",
-    "server:marketplace:dev": "dotenv -e ./.env.marketplace ts-node-dev ./src/server.ts"
+    "server:org1:dev": "dotenv -e ./.env.org1 ts-node-dev ./src/server.ts",
+    "server:org2:dev": "dotenv -e ./.env.org2 ts-node-dev ./src/server.ts"
   },
   "dependencies": {
     "@hyperledger/fabric-gateway": "^1.1.0",
