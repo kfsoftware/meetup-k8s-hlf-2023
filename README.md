@@ -805,6 +805,14 @@ kubectl hlf chaincode query --config=network.yaml \
     --fcn=GetAllAssets -a '[]'
 ```
 
+
+## Launch the API
+
+For this step, head over the `client` folder and follow the README instructions.
+
+
+## End of the tutorial
+
 At this point, you should have:
 
 - Ordering service with 3 nodes and a CA
@@ -812,6 +820,7 @@ At this point, you should have:
 - A channel **demo**
 - A chaincode installed in all peers
 - A chaincode approved and committed
+- 2 APIs running for the two different organizations
 
 If something went wrong or didn't work, please, open an issue.
 
@@ -826,20 +835,3 @@ kubectl delete fabricmainchannels --all-namespaces --all
 kubectl delete fabricfollowerchannels --all-namespaces --all
 ```
 
-## Troubleshooting
-
-### Chaincode installation/build error
-
-Chaincode installation/build can fail due to unsupported local kubertenes version such as [minikube](https://github.com/kubernetes/minikube).
-
-```shell
-$ kubectl hlf chaincode install --path=./fixtures/chaincodes/fabcar/go \
-        --config=network.yaml --language=golang --label=fabcar --user=admin --peer=org1-peer0.default
-
-Error: Transaction processing for endorser [192.168.49.2:31278]: Chaincode status Code: (500) UNKNOWN.
-Description: failed to invoke backing implementation of 'InstallChaincode': could not build chaincode:
-external builder failed: external builder failed to build: external builder 'my-golang-builder' failed:
-exit status 1
-```
-
-If your purpose is to test the hlf-operator please consider to switch to [kind](https://github.com/kubernetes-sigs/kind) that is tested and supported.
