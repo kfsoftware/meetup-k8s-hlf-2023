@@ -1,2 +1,8 @@
 node_modules
 istio-*
+code.tar.gz
+connection.json
+metadata.json
+chaincode.tgz
+resources/*
+!resources/.gitkeep

@@ -20,7 +20,7 @@ Ensure you have these ports available before creating the cluster:
 If these ports are not available this tutorial will not work.
 
 ```bash
-cat << EOF > kind-config.yaml
+cat << EOF > resources/kind-config.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
@@ -32,7 +32,7 @@ nodes:
     hostPort: 443
 EOF
 
-kind create cluster --config=./kind-config.yaml
+kind create cluster --config=./resources/kind-config.yaml
 
 ```
 
@@ -390,7 +390,8 @@ kubectl hlf ca register --name=ord-ca --user=admin --secret=adminpw \
 
 kubectl hlf ca enroll --name=ord-ca --namespace=default \
     --user=admin --secret=adminpw --mspid OrdererMSP \
-    --ca-name tlsca  --output orderermsp.yaml
+    --ca-name tlsca  --output resources/orderermsp.yaml
+
 ```
 
 ### Register and enrolling Org1MSP identity
@@ -403,7 +404,7 @@ kubectl hlf ca register --name=org1-ca --namespace=default --user=admin --secret
 # enroll
 kubectl hlf ca enroll --name=org1-ca --namespace=default \
     --user=admin --secret=adminpw --mspid Org1MSP \
-    --ca-name ca  --output org1msp.yaml
+    --ca-name ca  --output resources/org1msp.yaml
 
 ```
 
@@ -417,7 +418,7 @@ kubectl hlf ca register --name=org2-ca --namespace=default --user=admin --secret
 # enroll
 kubectl hlf ca enroll --name=org2-ca --namespace=default \
     --user=admin --secret=adminpw --mspid Org2MSP \
-    --ca-name ca  --output org2msp.yaml
+    --ca-name ca  --output resources/org2msp.yaml
 
 ```
 
@@ -426,9 +427,9 @@ kubectl hlf ca enroll --name=org2-ca --namespace=default \
 ```bash
 
 kubectl create secret generic wallet --namespace=default \
-        --from-file=org1msp.yaml=$PWD/org1msp.yaml \
-        --from-file=org2msp.yaml=$PWD/org2msp.yaml \
-        --from-file=orderermsp.yaml=$PWD/orderermsp.yaml
+        --from-file=org1msp.yaml=$PWD/resources/org1msp.yaml \
+        --from-file=org2msp.yaml=$PWD/resources/org2msp.yaml \
+        --from-file=orderermsp.yaml=$PWD/resources/orderermsp.yaml
 ```
 
 ### Create main channel
@@ -510,25 +511,26 @@ spec:
           port: 7053
       mspID: OrdererMSP
       ordererEndpoints:
-        - ord-node0:7050
-        - ord-node1:7050
-        - ord-node2:7050
+        - orderer0-ord.localho.st:443
+        - orderer1-ord.localho.st:443
+        - orderer2-ord.localho.st:443
       orderersToJoin: []
   orderers:
-    - host: ord-node0
-      port: 7050
+    - host: orderer0-ord.localho.st
+      port: 443
       tlsCert: |-
 ${ORDERER0_TLS_CERT}
-    - host: ord-node1
-      port: 7050
+    - host: orderer1-ord.localho.st
+      port: 443
       tlsCert: |-
 ${ORDERER1_TLS_CERT}
-    - host: ord-node2
-      port: 7050
+    - host: orderer2-ord.localho.st
+      port: 443
       tlsCert: |-
 ${ORDERER2_TLS_CERT}
 
 EOF
+
 ```
 
 ## Org1MSP Join peer to the channel
@@ -545,10 +547,10 @@ metadata:
   name: demo-org1msp
 spec:
   anchorPeers:
-    - host: org1-peer0.default
-      port: 7051
-    - host: org1-peer1.default
-      port: 7051
+    - host: peer0-org1.localho.st
+      port: 443
+    - host: peer1-org1.localho.st
+      port: 443
   hlfIdentity:
     secretKey: org1msp.yaml
     secretName: wallet
@@ -559,7 +561,7 @@ spec:
   orderers:
     - certificate: |
 ${ORDERER0_TLS_CERT}
-      url: grpcs://ord-node0.default:7050
+      url: grpcs://orderer0-ord.localho.st:443
   peersToJoin:
     - name: org1-peer0
       namespace: default
@@ -584,9 +586,9 @@ metadata:
   name: demo-org2msp
 spec:
   anchorPeers:
-    - host: org2-peer0.default
+    - host: peer0-org2.localho.st
       port: 7051
-    - host: org2-peer1.default
+    - host: peer1-org2.localho.st
       port: 7051
   hlfIdentity:
     secretKey: org2msp.yaml
@@ -598,7 +600,7 @@ spec:
   orderers:
     - certificate: |
 ${ORDERER0_TLS_CERT}
-      url: grpcs://ord-node0.default:7050
+      url: grpcs://orderer0-ord.localho.st:443
   peersToJoin:
     - name: org2-peer0
       namespace: default
@@ -622,7 +624,7 @@ To prepare the connection string, we have to:
 5. Get connection string without users for organization Org1MSP and OrdererMSP
 
 ```bash
-kubectl hlf inspect -c=demo --output network.yaml -o Org1MSP -o Org2MSP -o OrdererMSP
+kubectl hlf inspect -c=demo --output resources/network.yaml -o Org1MSP -o Org2MSP -o OrdererMSP
 ```
 
 2. Register a user in the certification authority for signing
@@ -636,13 +638,13 @@ kubectl hlf ca register --name=org1-ca --user=admin --secret=adminpw --type=admi
 
 ```bash
 kubectl hlf ca enroll --name=org1-ca --user=admin --secret=adminpw --mspid Org1MSP \
-        --ca-name ca  --output peer-org1.yaml
+        --ca-name ca  --output resources/peer-org1.yaml
 ```
 
 4. Attach the user to the connection string
 
 ```bash
-kubectl hlf utils adduser --userPath=peer-org1.yaml --config=network.yaml --username=admin --mspid=Org1MSP
+kubectl hlf utils adduser --userPath=resources/peer-org1.yaml --config=resources/network.yaml --username=admin --mspid=Org1MSP
 ```
 
 5. Register a user in the certification authority for signing
@@ -656,13 +658,13 @@ kubectl hlf ca register --name=org2-ca --user=admin --secret=adminpw --type=admi
 
 ```bash
 kubectl hlf ca enroll --name=org2-ca --user=admin --secret=adminpw --mspid Org2MSP \
-        --ca-name ca  --output peer-org2.yaml
+        --ca-name ca  --output resources/peer-org2.yaml
 ```
 
 7. Attach the user to the connection string
 
 ```bash
-kubectl hlf utils adduser --userPath=peer-org2.yaml --config=network.yaml --username=admin --mspid=Org2MSP
+kubectl hlf utils adduser --userPath=resources/peer-org2.yaml --config=resources/network.yaml --username=admin --mspid=Org2MSP
 ```
 
 ### Create metadata file
@@ -698,15 +700,15 @@ export PACKAGE_ID=$(kubectl hlf chaincode calculatepackageid --path=chaincode.tg
 echo "PACKAGE_ID=$PACKAGE_ID"
 
 kubectl hlf chaincode install --path=./chaincode.tgz \
-    --config=network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org1-peer0.default
+    --config=resources/network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org1-peer0.default
 kubectl hlf chaincode install --path=./chaincode.tgz \
-    --config=network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org1-peer1.default
+    --config=resources/network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org1-peer1.default
 
 
 kubectl hlf chaincode install --path=./chaincode.tgz \
-    --config=network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org2-peer0.default
+    --config=resources/network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org2-peer0.default
 kubectl hlf chaincode install --path=./chaincode.tgz \
-    --config=network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org2-peer1.default
+    --config=resources/network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=org2-peer1.default
 
 ```
 
@@ -722,12 +724,13 @@ export IMAGE="kfsoftware/asset-transfer-basic-ts:latest"
 
 If you are using Mac M1, you need to specify platform linux/amd64:
 ```bash
-docker build -t $IMAGE --platform=linux/amd64 .
+docker build -t $IMAGE --platform=linux/amd64 --file=./asset-transfer-basic/Dockerfile ./asset-transfer-basic
 ```
 
 Otherwise, just run:
+
 ```bash
-docker build -t $IMAGE .
+docker build -t $IMAGE --file=./asset-transfer-basic/Dockerfile ./asset-transfer-basic
 ```
 
 
@@ -754,55 +757,55 @@ kubectl hlf externalchaincode sync --image=$IMAGE \
 ## Check installed chaincodes
 
 ```bash
-kubectl hlf chaincode queryinstalled --config=network.yaml --user=admin --peer=org1-peer0.default
+kubectl hlf chaincode queryinstalled --config=resources/network.yaml --user=admin --peer=org1-peer0.default
 ```
 
 ## Approve chaincode - Org1MSP
 
 ```bash
-export SEQUENCE=2
+export SEQUENCE=1
 export VERSION="1.0"
-kubectl hlf chaincode approveformyorg --config=network.yaml --user=admin --peer=org1-peer0.default \
+kubectl hlf chaincode approveformyorg --config=resources/network.yaml --user=admin --peer=org1-peer0.default \
     --package-id=$PACKAGE_ID \
     --version "$VERSION" --sequence "$SEQUENCE" --name=asset \
-    --policy="OR('Org1MSP.member', 'Org2MSP.member')" --channel=demo
+    --policy="AND('Org1MSP.member', 'Org2MSP.member')" --channel=demo
 ```
 
-## Approve chaincode - Org1MSP
+## Approve chaincode - Org2MSP
 
 ```bash
-export SEQUENCE=2
+export SEQUENCE=1
 export VERSION="1.0"
-kubectl hlf chaincode approveformyorg --config=network.yaml --user=admin --peer=org2-peer0.default \
+kubectl hlf chaincode approveformyorg --config=resources/network.yaml --user=admin --peer=org2-peer0.default \
     --package-id=$PACKAGE_ID \
     --version "$VERSION" --sequence "$SEQUENCE" --name=asset \
-    --policy="OR('Org1MSP.member', 'Org2MSP.member')" --channel=demo
+    --policy="AND('Org1MSP.member', 'Org2MSP.member')" --channel=demo
 ```
 
 ## Commit chaincode
 
 ```bash
-kubectl hlf chaincode commit --config=network.yaml --user=admin --mspid=Org1MSP \
+kubectl hlf chaincode commit --config=resources/network.yaml --user=admin --mspid=Org1MSP \
     --version "$VERSION" --sequence "$SEQUENCE" --name=asset \
-    --policy="OR('Org1MSP.member', 'Org2MSP.member')" --channel=demo
+    --policy="AND('Org1MSP.member', 'Org2MSP.member')" --channel=demo
 ```
 
 ## Invoke a transaction on the channel
 
 ```bash
-kubectl hlf chaincode invoke --config=network.yaml \
+kubectl hlf chaincode invoke --config=resources/network.yaml \
     --user=admin --peer=org1-peer0.default \
     --chaincode=asset --channel=demo \
-    --fcn=initLedger -a '[]'
+    --fcn=InitLedger
 ```
 
 ## Query assets in the channel
 
 ```bash
-kubectl hlf chaincode query --config=network.yaml \
+kubectl hlf chaincode query --config=resources/network.yaml \
     --user=admin --peer=org1-peer0.default \
     --chaincode=asset --channel=demo \
-    --fcn=GetAllAssets -a '[]'
+    --fcn=GetAllAssets
 ```
 
 
