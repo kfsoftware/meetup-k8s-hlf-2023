@@ -34,6 +34,20 @@ Org2: http://localhost:3004
 ### Register a user
 
 ```bash
+http POST "http://localhost:3003/signup" username="user1" password="user1pw"
+```
+
+### Login with a user
+
+This operation must be done every time the program is restarted
+
+```bash
+http POST "http://localhost:3003/login" username="user1" password="user1pw"
+```
+
+### Register a user
+
+```bash
 http POST "http://localhost:3004/signup" username="user1" password="user1pw"
 ```
 
@@ -45,3 +59,57 @@ This operation must be done every time the program is restarted
 http POST "http://localhost:3004/login" username="user1" password="user1pw"
 ```
 <!-- TODO: Interact with assets API -->
+
+
+### Get all assets Org1
+
+```bash
+http POST "http://localhost:3003/evaluate" fcn=GetAllAssets 
+```
+### Get all assets Org2
+
+```bash
+http POST "http://localhost:3004/evaluate" fcn=GetAllAssets 
+```
+
+
+### Create asset Org1
+
+```bash
+http POST "http://localhost:3003/submit" fcn=CreateAsset "args[]=AssetKey11" "args[]=Blue" "args[]=10" "args[]=4"
+
+http POST "http://localhost:3003/evaluate" fcn=ReadAsset "args[]=AssetKey11"
+```
+
+### Transfer asset from Org1 to Org2
+```bash
+http POST "http://localhost:3003/submit" fcn=TransferAsset "args[]=AssetKey11" "args[]=Org2MSP:x509::/OU=admin/CN=admin::/C=ES/L=Alicante/=Alicante/O=Kung Fu Software/OU=Tech/CN=ca"
+```
+
+
+### Read asset to verify owner
+
+```bash
+http POST "http://localhost:3003/evaluate" fcn=ReadAsset "args[]=AssetKey11"
+
+```
+### Org2 updates the asset
+
+```bash
+http POST "http://localhost:3004/submit" fcn=UpdateAsset "args[]=AssetKey11" "args[]=Red" "args[]=10" "args[]=4"
+http POST "http://localhost:3004/evaluate" fcn=ReadAsset "args[]=AssetKey11"
+```
+
+### Transfer asset back to Org1
+
+
+```bash
+http POST "http://localhost:3004/submit" fcn=TransferAsset "args[]=AssetKey11" "args[]=Org1MSP:x509::/OU=admin/CN=admin::/C=ES/L=Alicante/=Alicante/O=Kung Fu Software/OU=Tech/CN=ca"
+
+```
+### Read asset to verify owner again
+
+```bash
+http POST "http://localhost:3003/evaluate" fcn=ReadAsset "args[]=AssetKey11"
+
+```

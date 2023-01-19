@@ -5,6 +5,7 @@
 # Tutorial
 
 Resources:
+
 - [Hyperledger Fabric build ARM](https://www.polarsparc.com/xhtml/Hyperledger-ARM-Build.html)
 
 ## Create Kubernetes Cluster
@@ -12,6 +13,7 @@ Resources:
 To start deploying our red fabric we have to have a Kubernetes cluster. For this we will use KinD.
 
 Ensure you have these ports available before creating the cluster:
+
 - 80
 - 443
 
@@ -49,7 +51,6 @@ helm repo add kfs https://kfsoftware.github.io/hlf-helm-charts --force-update
 helm install hlf-operator --version=1.8.2 kfs/hlf-operator
 ```
 
-
 ### Install the Kubectl plugin
 
 To install the kubectl plugin, you must first install Krew:
@@ -64,6 +65,7 @@ kubectl krew install hlf
 ### Install Istio
 
 Install Istio binaries on the machine:
+
 ```bash
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.16.1 TARGET_ARCH=x86_64 sh -
 export PATH="$PATH:$PWD/istio-1.16.1/bin"
@@ -144,7 +146,6 @@ EOF
 
 ## Deploy a `Peer` organization
 
-
 ### Environment Variables for AMD (Default)
 
 ```bash
@@ -158,7 +159,6 @@ export CA_IMAGE=hyperledger/fabric-ca
 export CA_VERSION=1.5.6-beta2
 ```
 
-
 ### Environment Variables for ARM (Mac M1)
 
 ```bash
@@ -168,12 +168,10 @@ export PEER_VERSION=2.4.6
 export ORDERER_IMAGE=bswamina/fabric-orderer
 export ORDERER_VERSION=2.4.6
 
-export CA_IMAGE=hyperledger/fabric-ca             
+export CA_IMAGE=hyperledger/fabric-ca
 export CA_VERSION=1.5.6-beta2
 
 ```
-
-
 
 ### Configure Internal DNS
 
@@ -262,8 +260,6 @@ openssl s_client -connect peer0-org1.localho.st:443
 openssl s_client -connect peer1-org1.localho.st:443
 ```
 
-
-
 ### Deploy a certificate authority for Org2MSP
 
 ```bash
@@ -311,7 +307,6 @@ openssl s_client -connect peer0-org2.localho.st:443
 openssl s_client -connect peer1-org2.localho.st:443
 ```
 
-
 ## Deploy an `Orderer` organization
 
 To deploy an `Orderer` organization we have to:
@@ -344,6 +339,7 @@ kubectl hlf ca register --name=ord-ca --user=orderer --secret=ordererpw \
     --type=orderer --enroll-id enroll --enroll-secret=enrollpw --mspid=OrdererMSP --ca-url="https://ord-ca.localho.st:443"
 
 ```
+
 ### Deploy orderer
 
 ```bash
@@ -379,7 +375,6 @@ openssl s_client -connect orderer1-ord.localho.st:443
 openssl s_client -connect orderer2-ord.localho.st:443
 ```
 
-
 ## Create channel
 
 To create the channel we need to first create the wallet secret, which will contain the identities used by the operator to manage the channel
@@ -397,7 +392,6 @@ kubectl hlf ca enroll --name=ord-ca --namespace=default \
     --user=admin --secret=adminpw --mspid OrdererMSP \
     --ca-name tlsca  --output orderermsp.yaml
 ```
-
 
 ### Register and enrolling Org1MSP identity
 
@@ -614,7 +608,6 @@ EOF
 
 ```
 
-
 ## Install a chaincode
 
 ### Prepare connection string for a peer
@@ -626,49 +619,51 @@ To prepare the connection string, we have to:
 3. Obtain the certificates using the previously created user (enroll)
 4. Attach the user to the connection string
 
-1. Get connection string without users for organization Org1MSP and OrdererMSP
-
+5. Get connection string without users for organization Org1MSP and OrdererMSP
 
 ```bash
-kubectl hlf inspect --output network.yaml -o Org1MSP -o Org2MSP -o OrdererMSP
+kubectl hlf inspect -c=demo --output network.yaml -o Org1MSP -o Org2MSP -o OrdererMSP
 ```
 
 2. Register a user in the certification authority for signing
+
 ```bash
 kubectl hlf ca register --name=org1-ca --user=admin --secret=adminpw --type=admin \
- --enroll-id enroll --enroll-secret=enrollpw --mspid Org1MSP  
+ --enroll-id enroll --enroll-secret=enrollpw --mspid Org1MSP
 ```
 
 3. Get the certificates using the user created above
+
 ```bash
 kubectl hlf ca enroll --name=org1-ca --user=admin --secret=adminpw --mspid Org1MSP \
         --ca-name ca  --output peer-org1.yaml
 ```
 
 4. Attach the user to the connection string
+
 ```bash
 kubectl hlf utils adduser --userPath=peer-org1.yaml --config=network.yaml --username=admin --mspid=Org1MSP
 ```
 
-
 5. Register a user in the certification authority for signing
+
 ```bash
 kubectl hlf ca register --name=org2-ca --user=admin --secret=adminpw --type=admin \
- --enroll-id enroll --enroll-secret=enrollpw --mspid Org2MSP  
+ --enroll-id enroll --enroll-secret=enrollpw --mspid Org2MSP
 ```
 
 6. Get the certificates using the user created above
+
 ```bash
 kubectl hlf ca enroll --name=org2-ca --user=admin --secret=adminpw --mspid Org2MSP \
         --ca-name ca  --output peer-org2.yaml
 ```
 
 7. Attach the user to the connection string
+
 ```bash
 kubectl hlf utils adduser --userPath=peer-org2.yaml --config=network.yaml --username=admin --mspid=Org2MSP
 ```
-
-
 
 ### Create metadata file
 
@@ -715,12 +710,40 @@ kubectl hlf chaincode install --path=./chaincode.tgz \
 
 ```
 
+## Build chaincode docker image
+
+Set up environment variables, make sure you use your own docker image name:
+
+```bash
+export IMAGE="kfsoftware/asset-transfer-basic-ts:latest"
+```
+
+### Build the docker image
+
+If you are using Mac M1, you need to specify platform linux/amd64:
+```bash
+docker build -t $IMAGE --platform=linux/amd64 .
+```
+
+Otherwise, just run:
+```bash
+docker build -t $IMAGE .
+```
+
+
+### Push the docker image
+Push the docker image to the container registry:
+
+```bash
+docker push $IMAGE
+```
 
 ## Deploy chaincode container on cluster
+
 The following command will create or update the CRD based on the packageID, chaincode name, and docker image.
 
 ```bash
-kubectl hlf externalchaincode sync --image=kfsoftware/chaincode-external:latest \
+kubectl hlf externalchaincode sync --image=$IMAGE \
     --name=$CHAINCODE_NAME \
     --namespace=default \
     --package-id=$PACKAGE_ID \
@@ -728,41 +751,44 @@ kubectl hlf externalchaincode sync --image=kfsoftware/chaincode-external:latest 
     --replicas=1
 ```
 
-
 ## Check installed chaincodes
+
 ```bash
 kubectl hlf chaincode queryinstalled --config=network.yaml --user=admin --peer=org1-peer0.default
 ```
 
 ## Approve chaincode - Org1MSP
+
 ```bash
-export SEQUENCE=1
+export SEQUENCE=2
 export VERSION="1.0"
 kubectl hlf chaincode approveformyorg --config=network.yaml --user=admin --peer=org1-peer0.default \
     --package-id=$PACKAGE_ID \
     --version "$VERSION" --sequence "$SEQUENCE" --name=asset \
-    --policy="AND('Org1MSP.member', 'Org2MSP.member')" --channel=demo
+    --policy="OR('Org1MSP.member', 'Org2MSP.member')" --channel=demo
 ```
 
 ## Approve chaincode - Org1MSP
+
 ```bash
-export SEQUENCE=1
+export SEQUENCE=2
 export VERSION="1.0"
 kubectl hlf chaincode approveformyorg --config=network.yaml --user=admin --peer=org2-peer0.default \
     --package-id=$PACKAGE_ID \
     --version "$VERSION" --sequence "$SEQUENCE" --name=asset \
-    --policy="AND('Org1MSP.member', 'Org2MSP.member')" --channel=demo
+    --policy="OR('Org1MSP.member', 'Org2MSP.member')" --channel=demo
 ```
 
 ## Commit chaincode
+
 ```bash
 kubectl hlf chaincode commit --config=network.yaml --user=admin --mspid=Org1MSP \
     --version "$VERSION" --sequence "$SEQUENCE" --name=asset \
-    --policy="AND('Org1MSP.member', 'Org2MSP.member')" --channel=demo
+    --policy="OR('Org1MSP.member', 'Org2MSP.member')" --channel=demo
 ```
 
-
 ## Invoke a transaction on the channel
+
 ```bash
 kubectl hlf chaincode invoke --config=network.yaml \
     --user=admin --peer=org1-peer0.default \
@@ -771,13 +797,13 @@ kubectl hlf chaincode invoke --config=network.yaml \
 ```
 
 ## Query assets in the channel
+
 ```bash
 kubectl hlf chaincode query --config=network.yaml \
     --user=admin --peer=org1-peer0.default \
     --chaincode=asset --channel=demo \
     --fcn=GetAllAssets -a '[]'
 ```
-
 
 At this point, you should have:
 
@@ -817,4 +843,3 @@ exit status 1
 ```
 
 If your purpose is to test the hlf-operator please consider to switch to [kind](https://github.com/kubernetes-sigs/kind) that is tested and supported.
-
