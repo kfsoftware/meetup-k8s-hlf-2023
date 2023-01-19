@@ -1,5 +1,12 @@
 # Hyperledger Meetup 2023 on Hyperledger Fabric
 
+## Sponsor
+
+|                                                                         |                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![kfs logo](https://avatars.githubusercontent.com/u/74511895?s=200&v=4) | If you want to design and deploy a secure Blockchain network based on the latest version of Hyperledger Fabric, feel free to contact dviejo@kungfusoftware.es or visit [https://kfs.es/blockchain](https://kfs.es/blockchain) |
+
+
 ## Getting started
 
 # Tutorial
@@ -40,7 +47,7 @@ kind create cluster --config=./resources/kind-config.yaml
 
 In this step we are going to install the kubernetes operator for Fabric, this will install:
 
-- CRD (Custom Resource Definitions) to deploy Certification Fabric Peers, Orderers and Authorities
+- CRD (Custom Resource Definitions) to deploy Fabric Peers, Orderers and Certification Authorities
 - Deploy the program to deploy the nodes in Kubernetes
 
 To install helm: [https://helm.sh/docs/intro/install/](https://helm.sh/docs/intro/install/)
@@ -211,6 +218,7 @@ data:
         loadbalance
     }
 EOF
+
 ```
 
 ### Deploy a certificate authority for Org1MSP
@@ -313,7 +321,7 @@ To deploy an `Orderer` organization we have to:
 
 1. Create a certification authority
 2. Register user `orderer` with password `ordererpw`
-3. Create orderer
+3. Create orderers
 
 ### Create the certification authority
 
@@ -387,7 +395,6 @@ kubectl hlf ca register --name=ord-ca --user=admin --secret=adminpw \
     --type=admin --enroll-id enroll --enroll-secret=enrollpw --mspid=OrdererMSP
 
 # enroll
-
 kubectl hlf ca enroll --name=ord-ca --namespace=default \
     --user=admin --secret=adminpw --mspid OrdererMSP \
     --ca-name tlsca  --output resources/orderermsp.yaml
@@ -465,7 +472,7 @@ spec:
     orderer:
       batchSize:
         absoluteMaxBytes: 1048576
-        maxMessageCount: 10
+        maxMessageCount: 120
         preferredMaxBytes: 524288
       batchTimeout: 2s
       capabilities:
